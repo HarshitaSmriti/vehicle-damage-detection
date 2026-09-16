@@ -77,7 +77,11 @@ async def predict_damage(
 
         try:
             image = Image.open(io.BytesIO(contents))
-            image.load()
+            # Memory safeguard: resize large camera photos to max 1024px while keeping aspect ratio
+            if max(image.size) > 1024:
+                image.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
+            if image.mode != "RGB":
+                image = image.convert("RGB")
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Failed to decode image: {str(e)}")
 
@@ -105,8 +109,8 @@ async def predict_damage(
         annotated_image = draw_detections_on_image(image, report["detections"])
 
         # 4. Generate base64 representations
-        orig_b64 = image_to_base64_uri(image, format="JPEG", quality=85)
-        annot_b64 = image_to_base64_uri(annotated_image, format="JPEG", quality=85)
+        orig_b64 = image_to_base64_uri(image, format="JPEG", quality=80)
+        annot_b64 = image_to_base64_uri(annotated_image, format="JPEG", quality=80)
 
         del image
         del annotated_image
@@ -134,6 +138,8 @@ async def export_pdf_report(
     try:
         contents = await file.read()
         image = Image.open(io.BytesIO(contents))
+        if max(image.size) > 1024:
+            image.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
         if image.mode != "RGB":
             image = image.convert("RGB")
 
@@ -154,6 +160,10 @@ async def export_pdf_report(
 
         annotated_image = draw_detections_on_image(image, report["detections"])
         pdf_bytes = generate_pdf_report(report, image, annotated_image)
+
+        del image
+        del annotated_image
+        gc.collect()
 
         filename = f"Vehicle_Damage_Report_{report['report_id']}.pdf"
         return Response(

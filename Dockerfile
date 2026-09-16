@@ -1,11 +1,15 @@
 ﻿FROM python:3.11-slim
 
-# Set environment variables
+# Set environment variables for minimal memory footprint
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    PYTHONMALLOC=malloc \
+    MALLOC_TRIM_THRESHOLD_=100000 \
+    OMP_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1 \
     PORT=8000
 
-# Install system dependencies (for OpenCV / PIL / Fonts)
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libgl1 \
@@ -21,7 +25,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application source code and models
+# Copy application source code and configs
 COPY . .
 
 # Expose port
@@ -31,5 +35,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8000/api/health || exit 1
 
-# Start Uvicorn server
-CMD ["uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start Uvicorn server with 1 worker
+CMD ["uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
