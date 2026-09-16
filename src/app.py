@@ -1,4 +1,5 @@
 ﻿import io
+import gc
 import time
 import logging
 from typing import Optional
@@ -34,12 +35,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize detector singleton on startup
 @app.on_event("startup")
 async def startup_event():
     logger.info("Initializing DamageDetector singleton on server startup...")
     DamageDetector.get_instance()
     logger.info("DamageDetector ready for inference.")
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return Response(status_code=204)
 
 @app.get("/api/health")
 async def health_check():
@@ -67,13 +71,6 @@ async def predict_damage(
     iou_threshold: Optional[float] = Form(DEFAULT_IOU_THRESHOLD)
 ):
     try:
-        # Validate file type
-        if not file.content_type or not file.content_type.startswith("image/"):
-            # Allow common image extensions
-            filename = file.filename.lower() if file.filename else ""
-            if not any(filename.endswith(ext) for ext in [".jpg", ".jpeg", ".png", ".webp", ".bmp"]):
-                raise HTTPException(status_code=400, detail="Uploaded file must be a valid image (JPEG, PNG, WebP, BMP).")
-
         contents = await file.read()
         if len(contents) == 0:
             raise HTTPException(status_code=400, detail="Uploaded image file is empty.")
@@ -107,9 +104,13 @@ async def predict_damage(
         # 3. Generate annotated image
         annotated_image = draw_detections_on_image(image, report["detections"])
 
-        # 4. Generate base64 representations for web display
-        orig_b64 = image_to_base64_uri(image, format="JPEG", quality=88)
-        annot_b64 = image_to_base64_uri(annotated_image, format="JPEG", quality=88)
+        # 4. Generate base64 representations
+        orig_b64 = image_to_base64_uri(image, format="JPEG", quality=85)
+        annot_b64 = image_to_base64_uri(annotated_image, format="JPEG", quality=85)
+
+        del image
+        del annotated_image
+        gc.collect()
 
         return {
             "success": True,

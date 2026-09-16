@@ -144,7 +144,6 @@
         emptyState.style.display = "block";
         resultsContent.style.display = "none";
         reportNavTab.disabled = true;
-        // Switch back to detect tab if on report tab
         if (reportNavTab.classList.contains("active")) {
             document.querySelector('[data-tab="detectTab"]').click();
         }
@@ -197,8 +196,14 @@
             });
 
             if (!response.ok) {
-                const errData = await response.json();
-                throw new Error(errData.detail || "Inference failed.");
+                let errorMsg = `Server error (${response.status})`;
+                try {
+                    const errData = await response.json();
+                    errorMsg = errData.detail || errorMsg;
+                } catch {
+                    errorMsg = `Inference failed with HTTP ${response.status}. The server may be under high load or restarting.`;
+                }
+                throw new Error(errorMsg);
             }
 
             const data = await response.json();
@@ -213,7 +218,7 @@
             }
         } catch (error) {
             console.error("Prediction error:", error);
-            alert("Error during detection: " + error.message);
+            alert(error.message);
         } finally {
             loadingOverlay.style.display = "none";
         }

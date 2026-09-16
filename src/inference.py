@@ -1,4 +1,5 @@
 ﻿import os
+import gc
 import time
 import logging
 import urllib.request
@@ -8,6 +9,14 @@ import torch
 from PIL import Image
 from transformers import RTDetrForObjectDetection, RTDetrImageProcessor
 from src.config import BEST_MODEL_DIR, DEFAULT_CONFIDENCE_THRESHOLD, CLASS_NAMES, APP_CONFIG
+
+# Optimize PyTorch CPU memory and threads for cloud/container deployment
+torch.set_num_threads(1)
+if hasattr(torch, "set_num_interop_threads"):
+    try:
+        torch.set_num_interop_threads(1)
+    except Exception:
+        pass
 
 logger = logging.getLogger("vehicle_damage_detector.inference")
 
@@ -22,7 +31,6 @@ def ensure_model_weights(model_dir: Union[str, Path]):
         logger.info(f"Model weights not found in {model_dir_path}. Downloading from GitHub Releases...")
         model_dir_path.mkdir(parents=True, exist_ok=True)
         
-        # Download with progress log
         temp_file = model_dir_path / "model.safetensors.download"
         try:
             opener = urllib.request.build_opener()
@@ -43,7 +51,6 @@ class DamageDetector:
     def __init__(self, model_path: Optional[str] = None):
         self.model_path = str(model_path or BEST_MODEL_DIR)
         
-        # Auto-download weights if missing (e.g. in cloud container)
         ensure_model_weights(self.model_path)
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -51,15 +58,21 @@ class DamageDetector:
         
         start_time = time.time()
         self.processor = RTDetrImageProcessor.from_pretrained(self.model_path)
-        self.model = RTDetrForObjectDetection.from_pretrained(self.model_path)
+        
+        # Load in evaluation mode with low CPU memory overhead
+        self.model = RTDetrForObjectDetection.from_pretrained(
+            self.model_path,
+            low_cpu_mem_usage=True
+        )
         self.model.to(self.device)
         self.model.eval()
         self.load_time_seconds = time.time() - start_time
         
         self.id2label = getattr(self.model.config, "id2label", CLASS_NAMES)
-        # Ensure integer keys for id2label
         self.id2label = {int(k): str(v) for k, v in self.id2label.items()}
         logger.info(f"Model loaded successfully in {self.load_time_seconds:.2f}s with classes: {self.id2label}")
+        
+        gc.collect()
 
     @classmethod
     def get_instance(cls, model_path: Optional[str] = None) -> 'DamageDetector':
@@ -74,19 +87,17 @@ class DamageDetector:
     ) -> List[Dict[str, Any]]:
         threshold = confidence_threshold if confidence_threshold is not None else DEFAULT_CONFIDENCE_THRESHOLD
         
-        # Ensure RGB format
         if image.mode != "RGB":
             image = image.convert("RGB")
             
         orig_width, orig_height = image.size
         
-        # Exact preprocessing via RTDetrImageProcessor
+        # Process tensor inputs
         inputs = self.processor(images=image, return_tensors="pt").to(self.device)
         
-        with torch.no_grad():
+        with torch.inference_mode():
             outputs = self.model(**inputs)
             
-        # Target sizes for mapping model coordinates back to original image dimensions
         target_sizes = torch.tensor([[orig_height, orig_width]], device=self.device)
         
         results = self.processor.post_process_object_detection(
@@ -103,13 +114,11 @@ class DamageDetector:
         
         for score, label_idx, box in zip(scores, labels, boxes):
             xmin, ymin, xmax, ymax = box
-            # Clamp coordinates to original image boundaries
             xmin = max(0.0, min(float(orig_width), float(xmin)))
             ymin = max(0.0, min(float(orig_height), float(ymin)))
             xmax = max(0.0, min(float(orig_width), float(xmax)))
             ymax = max(0.0, min(float(orig_height), float(ymax)))
             
-            # Skip degenerate boxes
             if xmax <= xmin or ymax <= ymin:
                 continue
                 
@@ -129,6 +138,11 @@ class DamageDetector:
                 }
             })
             
+        # Free tensor outputs memory
+        del outputs
+        del inputs
+        gc.collect()
+        
         return detections
 
     def get_model_info(self) -> Dict[str, Any]:
