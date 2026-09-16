@@ -1,7 +1,9 @@
 ﻿import os
 import time
 import logging
+import urllib.request
 from typing import List, Dict, Any, Optional, Tuple, Union
+from pathlib import Path
 import torch
 from PIL import Image
 from transformers import RTDetrForObjectDetection, RTDetrImageProcessor
@@ -9,11 +11,41 @@ from src.config import BEST_MODEL_DIR, DEFAULT_CONFIDENCE_THRESHOLD, CLASS_NAMES
 
 logger = logging.getLogger("vehicle_damage_detector.inference")
 
+MODEL_WEIGHTS_URL = "https://github.com/HarshitaSmriti/vehicle-damage-detection/releases/download/v1.0.0/model.safetensors"
+
+def ensure_model_weights(model_dir: Union[str, Path]):
+    model_dir_path = Path(model_dir)
+    target_safetensors = model_dir_path / "model.safetensors"
+    target_bin = model_dir_path / "pytorch_model.bin"
+
+    if not target_safetensors.exists() and not target_bin.exists():
+        logger.info(f"Model weights not found in {model_dir_path}. Downloading from GitHub Releases...")
+        model_dir_path.mkdir(parents=True, exist_ok=True)
+        
+        # Download with progress log
+        temp_file = model_dir_path / "model.safetensors.download"
+        try:
+            opener = urllib.request.build_opener()
+            opener.addheaders = [("User-Agent", "Mozilla/5.0")]
+            urllib.request.install_opener(opener)
+            urllib.request.urlretrieve(MODEL_WEIGHTS_URL, temp_file)
+            temp_file.rename(target_safetensors)
+            logger.info(f"Model weights downloaded successfully ({target_safetensors.stat().st_size / (1024*1024):.1f} MB)")
+        except Exception as e:
+            if temp_file.exists():
+                temp_file.unlink()
+            logger.exception("Failed to download model weights automatically")
+            raise RuntimeError(f"Could not download model weights: {e}")
+
 class DamageDetector:
     _instance: Optional['DamageDetector'] = None
 
     def __init__(self, model_path: Optional[str] = None):
         self.model_path = str(model_path or BEST_MODEL_DIR)
+        
+        # Auto-download weights if missing (e.g. in cloud container)
+        ensure_model_weights(self.model_path)
+
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         logger.info(f"Initializing DamageDetector on device: {self.device}")
         
