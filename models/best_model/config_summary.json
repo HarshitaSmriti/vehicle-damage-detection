@@ -1,0 +1,19 @@
+{
+  "checkpoint_base": "PekingU/rtdetr_r50vd_coco_o365",
+  "num_classes": 4,
+  "image_size": 640,
+  "confidence_threshold": 0.1,
+  "trained_epochs": 21,
+  "best_val_loss": 14.477421098825882,
+  "test_mAP_50": 0.5897945165634155,
+  "test_mAP_50_95": -1.0,
+  "dataset": {
+    "source": "roboflow",
+    "workspace": "sammy",
+    "project": "damaged-vehicle-images",
+    "version": 1,
+    "license": "UNVERIFIED",
+    "license_confirmed": false
+  },
+  "trained_at_utc": "2026-09-16T11:06:06.143446"
+}

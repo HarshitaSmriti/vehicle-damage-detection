@@ -1,0 +1,14 @@
+{
+  "id2label": {
+    "0": "crack_or_hole",
+    "1": "deformation",
+    "2": "scratch",
+    "3": "windshield_damage"
+  },
+  "label2id": {
+    "crack_or_hole": 0,
+    "deformation": 1,
+    "scratch": 2,
+    "windshield_damage": 3
+  }
+}

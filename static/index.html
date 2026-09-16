@@ -1,0 +1,398 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vehicle Damage Detection & Assessment System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-container">
+            <div class="logo-group">
+                <div class="logo-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.5 2.8C2.1 10.9 2 11.2 2 11.5V16c0 .6.4 1 1 1h2"/>
+                        <circle cx="7" cy="17" r="2"/>
+                        <path d="M9 17h6"/>
+                        <circle cx="17" cy="17" r="2"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="app-title">Vehicle Damage Assessment</h1>
+                    <p class="app-subtitle">Real-Time Computer Vision Detection & Structured Audit Reporting</p>
+                </div>
+            </div>
+            <div class="header-badges">
+                <span class="badge badge-model" id="modelBadge">RT-DETR ResNet-50</span>
+                <span class="badge badge-device" id="deviceBadge">Loading...</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs">
+            <button class="nav-tab active" data-tab="detectTab">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+                Damage Detection
+            </button>
+            <button class="nav-tab" data-tab="reportTab" id="reportNavTab" disabled>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                Audit Report
+            </button>
+            <button class="nav-tab" data-tab="modelTab">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                Model Architecture & Analytics
+            </button>
+        </nav>
+
+        <!-- Tab 1: Detection Tab -->
+        <section id="detectTab" class="tab-content active">
+            <div class="dashboard-grid">
+                <!-- Left Sidebar: Controls & Upload -->
+                <div class="card control-card">
+                    <h2 class="card-title">1. Upload Vehicle Image</h2>
+                    <div class="upload-zone" id="uploadZone">
+                        <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp,image/bmp" hidden>
+                        <div class="upload-prompt" id="uploadPrompt">
+                            <div class="upload-icon">
+                                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="17 8 12 3 7 8"/>
+                                    <line x1="12" y1="3" x2="12" y2="15"/>
+                                </svg>
+                            </div>
+                            <p class="upload-title"><strong>Drop image here</strong> or browse</p>
+                            <p class="upload-hint">Supports JPEG, PNG, WebP, BMP (up to 20MB)</p>
+                        </div>
+                        <div class="image-preview-wrapper" id="previewWrapper" style="display: none;">
+                            <img id="imagePreview" alt="Upload Preview">
+                            <button type="button" class="btn-remove-image" id="removeImageBtn" title="Remove image">&times;</button>
+                        </div>
+                    </div>
+
+                    <h2 class="card-title mt-4">2. Detection Parameters</h2>
+                    <div class="param-group">
+                        <div class="param-header">
+                            <label for="confSlider">Confidence Threshold</label>
+                            <span class="param-val" id="confValue">0.10</span>
+                        </div>
+                        <input type="range" id="confSlider" min="0.05" max="0.95" step="0.05" value="0.10">
+                        <p class="param-desc">Default from model configuration: 0.10</p>
+                    </div>
+
+                    <div class="param-group">
+                        <div class="toggle-row">
+                            <label for="groupDuplicatesToggle">Group Duplicate Detections</label>
+                            <input type="checkbox" id="groupDuplicatesToggle" class="switch-input">
+                        </div>
+                        <p class="param-desc">Merge nearby overlapping bounding boxes (IoU &ge; 0.60)</p>
+                    </div>
+
+                    <div class="action-buttons mt-4">
+                        <button class="btn btn-primary btn-block" id="detectBtn" disabled>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            Detect Damage
+                        </button>
+                        <button class="btn btn-secondary btn-block" id="resetBtn">Reset</button>
+                    </div>
+
+                    <!-- Legend -->
+                    <div class="legend-box mt-4">
+                        <h4 class="legend-title">Model Classes</h4>
+                        <div class="legend-items">
+                            <span class="legend-item"><span class="legend-dot dot-crack"></span> Crack or Hole</span>
+                            <span class="legend-item"><span class="legend-dot dot-deformation"></span> Deformation</span>
+                            <span class="legend-item"><span class="legend-dot dot-scratch"></span> Scratch</span>
+                            <span class="legend-item"><span class="legend-dot dot-windshield"></span> Windshield Damage</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Content: Interactive Results -->
+                <div class="card results-card" id="resultsCard">
+                    <div class="results-empty-state" id="emptyState">
+                        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="1.5">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                        <h3>Ready for Inspection</h3>
+                        <p>Upload a vehicle image and click <strong>Detect Damage</strong> to initiate RT-DETR computer vision inference and generate a damage report.</p>
+                    </div>
+
+                    <div class="results-content" id="resultsContent" style="display: none;">
+                        <!-- Top Summary Cards -->
+                        <div class="metrics-row">
+                            <div class="metric-card">
+                                <div class="metric-icon icon-blue">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
+                                </div>
+                                <div>
+                                    <span class="metric-label">Damage Regions</span>
+                                    <span class="metric-value" id="statTotalDetections">0</span>
+                                </div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-icon icon-amber">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                                </div>
+                                <div>
+                                    <span class="metric-label">Categories Found</span>
+                                    <span class="metric-value" id="statCategoriesCount">0</span>
+                                </div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-icon icon-green">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                                </div>
+                                <div>
+                                    <span class="metric-label">Peak Confidence</span>
+                                    <span class="metric-value" id="statPeakConfidence">0%</span>
+                                </div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-icon icon-purple">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                </div>
+                                <div>
+                                    <span class="metric-label">Inference Time</span>
+                                    <span class="metric-value" id="statLatency">0 ms</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Image Display with View Toggles -->
+                        <div class="viewer-section">
+                            <div class="viewer-header">
+                                <h3 class="section-title">Visual Inspection</h3>
+                                <div class="btn-group-toggle">
+                                    <button class="btn-toggle active" data-view="annotated">Annotated Image</button>
+                                    <button class="btn-toggle" data-view="original">Original Image</button>
+                                    <button class="btn-toggle" data-view="split">Side-by-Side</button>
+                                </div>
+                            </div>
+                            <div class="image-display-area" id="imageDisplayArea">
+                                <div class="single-image-view" id="singleView">
+                                    <img id="mainResultImage" alt="Vehicle Inspection Result">
+                                </div>
+                                <div class="split-image-view" id="splitView" style="display: none;">
+                                    <div class="split-col">
+                                        <span class="view-label">Original Image</span>
+                                        <img id="splitOriginalImage" alt="Original Vehicle">
+                                    </div>
+                                    <div class="split-col">
+                                        <span class="view-label">Annotated Detections</span>
+                                        <img id="splitAnnotatedImage" alt="Annotated Vehicle">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Damage Category Breakdown -->
+                        <div class="breakdown-section mt-4">
+                            <h3 class="section-title">Damage Category Breakdown</h3>
+                            <div class="table-responsive">
+                                <table class="data-table" id="breakdownTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Damage Category</th>
+                                            <th>Count</th>
+                                            <th>Peak Confidence</th>
+                                            <th>Observed Spatial Regions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="breakdownTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Detailed Detections Inventory -->
+                        <div class="detections-section mt-4">
+                            <h3 class="section-title">Individual Damage Detections</h3>
+                            <div class="detections-grid" id="detectionsGrid"></div>
+                        </div>
+
+                        <!-- Action Bar -->
+                        <div class="report-action-bar mt-4">
+                            <button class="btn btn-primary" id="viewFullReportBtn">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                                View Structured Report
+                            </button>
+                            <button class="btn btn-success" id="downloadPdfBtn">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                Download Audit PDF
+                            </button>
+                            <button class="btn btn-outline" id="exportJsonBtn">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                                Export JSON
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab 2: Full Formal Audit Report Tab -->
+        <section id="reportTab" class="tab-content">
+            <div class="card formal-report-card">
+                <div class="report-header-banner">
+                    <div>
+                        <span class="report-tag">AUTOMATED AUDIT REPORT</span>
+                        <h2 class="report-doc-title">VEHICLE DAMAGE ASSESSMENT</h2>
+                        <div class="report-meta-line">
+                            <span>Inspection ID: <strong id="repId">--</strong></span>
+                            <span>Audit Date: <strong id="repDate">--</strong></span>
+                            <span>Status: <strong class="badge-success">Completed</strong></span>
+                        </div>
+                    </div>
+                    <div class="report-banner-actions">
+                        <button class="btn btn-sm btn-success" id="downloadPdfBtn2">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Download PDF
+                        </button>
+                    </div>
+                </div>
+
+                <div class="report-body">
+                    <!-- Executive Summary Box -->
+                    <div class="report-section">
+                        <h3 class="rep-heading">1. Executive Summary</h3>
+                        <div class="rep-callout-box" id="repExecutiveSummary">--</div>
+                    </div>
+
+                    <!-- Visual Comparison Gallery -->
+                    <div class="report-section mt-4">
+                        <h3 class="rep-heading">2. Visual Inspection Evidence</h3>
+                        <div class="report-image-gallery">
+                            <div class="rep-img-box">
+                                <h4>Original Vehicle Image</h4>
+                                <img id="repOriginalImg" alt="Original Vehicle">
+                            </div>
+                            <div class="rep-img-box">
+                                <h4>Model Detection Annotation</h4>
+                                <img id="repAnnotatedImg" alt="Annotated Vehicle">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Damage Breakdown Table -->
+                    <div class="report-section mt-4">
+                        <h3 class="rep-heading">3. Damage Category Breakdown</h3>
+                        <div class="table-responsive">
+                            <table class="data-table" id="repBreakdownTable">
+                                <thead>
+                                    <tr>
+                                        <th>Damage Type</th>
+                                        <th>Detected Count</th>
+                                        <th>Peak Confidence</th>
+                                        <th>Spatial Locations</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="repBreakdownBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Individual Detections Inventory -->
+                    <div class="report-section mt-4">
+                        <h3 class="rep-heading">4. Detailed Detection Inventory</h3>
+                        <div class="table-responsive">
+                            <table class="data-table" id="repInventoryTable">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Damage Class</th>
+                                        <th>Confidence</th>
+                                        <th>Image Region</th>
+                                        <th>Bounding Box [x1, y1, x2, y2]</th>
+                                        <th>Status / Severity</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="repInventoryBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Methodological Limitations & Safety Warnings -->
+                    <div class="report-section mt-4">
+                        <h3 class="rep-heading">5. Methodological Limitations & Inspection Guidance</h3>
+                        <div class="advisory-card">
+                            <div class="advisory-title">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                Important Inspection Disclaimers
+                            </div>
+                            <ul class="advisory-list" id="repLimitationsList"></ul>
+                            <h4 class="mt-3"><strong>Recommended Next Steps:</strong></h4>
+                            <ul class="advisory-list" id="repRecommendationsList"></ul>
+                        </div>
+                    </div>
+
+                    <!-- Model Provenance -->
+                    <div class="report-section mt-4">
+                        <h3 class="rep-heading">6. Audit & Model Provenance</h3>
+                        <div class="model-provenance-box" id="repModelProvenance"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab 3: Model Architecture & Training Analytics -->
+        <section id="modelTab" class="tab-content">
+            <div class="card analytics-card">
+                <h2 class="card-title">Model Architecture & Training Artifacts</h2>
+                <p class="text-muted">Inspection of the pre-trained RT-DETR model configuration and training run evaluation artifacts.</p>
+
+                <div class="metrics-row mt-4">
+                    <div class="metric-card">
+                        <span class="metric-label">Model Architecture</span>
+                        <span class="metric-value small-text" id="infoArch">RT-DETR ResNet-50</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Base Checkpoint</span>
+                        <span class="metric-value small-text" id="infoCheckpoint">PekingU/rtdetr_r50vd</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Trained Epochs</span>
+                        <span class="metric-value" id="infoEpochs">21</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Test mAP@50</span>
+                        <span class="metric-value" id="infoMap">58.98%</span>
+                    </div>
+                </div>
+
+                <div class="artifacts-grid mt-4">
+                    <div class="artifact-box">
+                        <h3>Training & Validation Curves</h3>
+                        <img src="/outputs/training_curves.png" alt="Training Curves" onerror="this.parentElement.style.display='none'">
+                    </div>
+                    <div class="artifact-box">
+                        <h3>Confusion Matrix</h3>
+                        <img src="/outputs/confusion_matrix.png" alt="Confusion Matrix" onerror="this.parentElement.style.display='none'">
+                    </div>
+                    <div class="artifact-box full-width">
+                        <h3>Dataset Class Distribution</h3>
+                        <img src="/outputs/class_distribution.png" alt="Class Distribution" onerror="this.parentElement.style.display='none'">
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Loading Modal Overlay -->
+    <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+        <div class="loading-card">
+            <div class="spinner"></div>
+            <h3>Analyzing Vehicle Damage</h3>
+            <p>Running RT-DETR neural network inference and compiling damage assessment...</p>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

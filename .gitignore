@@ -1,0 +1,36 @@
+﻿# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environment & Dependencies
+.venv/
+venv/
+ENV/
+env/
+*.env
+
+# Operating System
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Large Model Weights and Archives (>100MB)
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.onnx
+*.zip
+
+# IDE & Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary runtime files
+temp/
+tmp/
+*.log
